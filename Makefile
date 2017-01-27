@@ -1,6 +1,6 @@
-modules = $(shell ls [0-9][0-9]*.sh)
+modules = $(shell ls [0-9][0-9]_*)
 
-all:	build/EnterRouterMode.sh build/ChangeRootPassword.sh
+all:	build/EnterRouterMode.sh 
 
 build/EnterRouterMode.sh: ${modules} Makefile
 	@rm -f $@
@@ -13,6 +13,3 @@ build/EnterRouterMode.sh: ${modules} Makefile
 	done \
 	     > $@
 	@echo Done.
-
-build/ChangeRootPassword.sh: ChangeRootPassword.sh
-	@cp -p $^ $@

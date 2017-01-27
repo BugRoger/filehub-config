@@ -1,0 +1,15 @@
+# Delete existing modification from file, if it exists
+sed -i '/#START_MOD/,/#END_MOD/d' /etc/udev/script/add_usb_storage.sh
+
+# Delete exit from end of the file
+sed -i '/^exit$/d' /etc/udev/script/add_usb_storage.sh
+
+# Add call to usb backup script after drive mounts
+cat <<'EOF' >> /etc/udev/script/add_usb_storage.sh
+#START_MOD
+# Run backup script
+swap_on
+/etc/udev/script/backup.sh &
+exit
+#END_MOD
+EOF

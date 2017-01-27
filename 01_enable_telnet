@@ -1,0 +1,16 @@
+if [ -f /etc/init.d/opentelnet.sh ]; then
+  mv -f /etc/init.d/opentelnet.sh /etc/init.d/opentelnet.sh.OFF
+fi
+
+if [ -f /etc/telnetflag ]; then
+    mv -f /etc/telnetflag /etc/telnetflag.OFF
+fi
+
+if [ -f /etc/checktelnetflag ]; then
+    mv -f /etc/checktelnetflag /etc/checktelnetflag.OFF
+fi
+
+if grep -q 'root:/sbin/nologin' /etc/passwd; then
+  echo enable root shell
+  sed -i "s|:/root:/sbin/nologin|:/root:/bin/sh|" /etc/passwd
+fi

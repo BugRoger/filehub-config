@@ -1,0 +1,97 @@
+cat  <<'EOF' > /etc/udev/script/backup.sh
+#!/bin/sh
+
+readonly PROGNAME=$(basename "$0")
+readonly PIDFILE=/tmp/$PROGNAME.pid
+
+readonly SOURCE_DIR=/data/UsbDisk1/Volume1
+readonly TARGET_DIR=/data/UsbDisk2/Volume1
+readonly BIN_DIR=$TARGET_DIR/.bin
+
+
+start() {
+  /usr/sbin/pioctl internet 2
+  sleep 0.2
+  /usr/sbin/pioctl status 2
+  sleep 0.2
+  /usr/sbin/pioctl wifi 2
+}
+
+prepare() {
+  export PATH="$BIN_DIR":$PATH
+}
+
+enforce_singleton() {
+  if [ -f $PIDFILE ]; then
+    ps -p $PID > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+      echo "Backup already running"
+      exit 1
+    fi
+  fi
+  echo $$ > $PIDFILE
+}
+
+uuid() {
+  local uuid="$SOURCE_DIR"/.uuid
+  if ! [ -f $uuid ]; then
+    echo $(date | md5sum | head -c${1:-16}) > $uuid
+  fi
+  cat $uuid
+}
+
+check_mount() {
+  local expected=$1
+  while read device mountpoint fstype remainder; do
+  if [[ "$mountpoint" == "$expected" ]]; then
+    return 0
+  fi
+  done < /proc/mounts
+  return 1
+}
+
+check_binaries() {
+  command -v rsync >/dev/null 2>&1
+}
+
+backup() {
+  local uuid=$(uuid)
+  local source_dir=$1
+  local backup_dir=$2/$uuid
+
+  echo "----------------------------------------------------------------------------------------------------------"
+  echo "$(date +'%F %T'): Backuping ${source_dir} --> ${backup_dir}"
+  echo "----------------------------------------------------------------------------------------------------------"
+ 
+  mkdir -p ${backup_dir}
+  rsync -av --modify-window=2 --exclude ".vst" ${source_dir}/ ${backup_dir}
+  sync
+}
+
+finish() {
+  sleep 5
+  /usr/sbin/pioctl internet 3
+  /usr/sbin/pioctl status 3
+  /usr/sbin/pioctl wifi 3
+}
+
+main() {
+  start
+  prepare
+  enforce_singleton
+  check_mount $SOURCE_DIR || { echo >&2 "No SDCard found. Aborting."; exit 1; }
+  check_mount $TARGET_DIR || { echo >&2 "No HDD found. Aborting."; exit 1; }
+  check_binaries          || { echo >&2 "Rsync required.  Aborting."; exit 1; }
+  backup $SOURCE_DIR $TARGET_DIR/backups
+}
+
+exec >> $TARGET_DIR/backup.log
+exec 2>&1
+trap finish EXIT
+
+main
+
+EOF
+
+chmod +x /etc/udev/script/backup.sh
+
